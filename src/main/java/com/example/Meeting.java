@@ -1,17 +1,17 @@
 package main.java.com.example;
 
-import main.java.com.example.exceptions.InvalidTimeRange;
+import main.java.com.example.exceptions.InvalidTimeRangeException;
 
 import java.time.LocalTime;
 
-public class Meeting {
+class Meeting {
 
     private String start;
     private String end;
 
-    public Meeting(String start, String end) throws InvalidTimeRange {
+    public Meeting(String start, String end) throws InvalidTimeRangeException {
         if(LocalTime.parse(end).isBefore(LocalTime.parse(start))){
-            throw new InvalidTimeRange("Invalid meetings ranges: meeting cannot end before the start.");
+            throw new InvalidTimeRangeException("Invalid meetings ranges: meeting cannot end before the start.");
         }else{
             this.start = start;
             this.end = end;

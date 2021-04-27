@@ -1,6 +1,6 @@
 package main.java.com.example;
 
-import main.java.com.example.exceptions.InvalidTimeRange;
+import main.java.com.example.exceptions.InvalidTimeRangeException;
 import org.jetbrains.annotations.NotNull;
 
 import java.time.Duration;
@@ -15,13 +15,19 @@ public class MeetAlgorithm {
         //static methods only
     }
 
-    public static List<List<String>> getPossibleMeetingRanges(@NotNull Calendar firstCalendar, @NotNull Calendar secondCalendar, String meetingDuration) throws InvalidTimeRange {
+    public static List<TimeRange> getPossibleMeetingRanges(@NotNull Calendar firstCalendar, @NotNull Calendar secondCalendar, String meetingDuration) throws InvalidTimeRangeException {
 
         var commonWorkingRange = getPossibleTimeRangeForMeeting(firstCalendar, secondCalendar);
 
-        List<Meeting> spareTimeSlotsFirstCal = getAvailableTimeSlotsBasedOnMeetingDuration(firstCalendar, meetingDuration, commonWorkingRange);
-        List<Meeting> spareTimeSlotsSecondCal = getAvailableTimeSlotsBasedOnMeetingDuration(secondCalendar, meetingDuration, commonWorkingRange);
+        List<Meeting> availableTimeSlotsOfFirstCal = getAvailableTimeSlotsBasedOnMeetingDuration(firstCalendar, meetingDuration, commonWorkingRange);
+        List<Meeting> availableTimeSlotsOfSecondCal = getAvailableTimeSlotsBasedOnMeetingDuration(secondCalendar, meetingDuration, commonWorkingRange);
 
+        List<Meeting> listOfMeeting = getListOfMeetingsBasedOnAvailableTimeSlots(availableTimeSlotsOfFirstCal, availableTimeSlotsOfSecondCal);
+        return minimizeMeetingsRangesInList(listOfMeeting);
+    }
+
+    @NotNull
+    private static List<Meeting> getListOfMeetingsBasedOnAvailableTimeSlots(List<Meeting> spareTimeSlotsFirstCal, List<Meeting> spareTimeSlotsSecondCal) throws InvalidTimeRangeException {
         List<Meeting> listOfMeeting = new ArrayList<>();
         for (Meeting meetingsOfFirstCal : spareTimeSlotsFirstCal) {
             for (Meeting meetingsOfSecondCal : spareTimeSlotsSecondCal) {
@@ -31,31 +37,40 @@ public class MeetAlgorithm {
                 }
             }
         }
-        return minimizeMeetingsRangesInList(listOfMeeting);
+        return listOfMeeting;
     }
 
-    private static List<List<String>> minimizeMeetingsRangesInList(List<Meeting> listOfMeetings){
+    private static List<TimeRange> minimizeMeetingsRangesInList(List<Meeting> listOfMeetings) throws InvalidTimeRangeException {
 
-        List<List<String>> minimizedList = new ArrayList<>();
-        List<Meeting> meetings = listOfMeetings;
+        List<Meeting> meetings = sortTheListOfMeetingsAsc(listOfMeetings);
 
-        for(var i = 0; i < meetings.size() - 1; i++){
-            if(meetings.get(i).getEnd().equals(meetings.get(i + 1).getStart())){
-                meetings.get(i).setEnd(meetings.get(i + 1).getEnd());
-                meetings.remove(i + 1);
-                --i;
+        for(var i = 0; i < meetings.size(); i++) {
+            for (var j = 1; j < meetings.size(); j++) {
+                if (uniteMeetingsIfPossible(meetings, i, j)) {
+                    --j; //decrementing the j value because of deleting one meeting because of uniting two of them
+                }
             }
         }
+        return changeMeetingsToTimeRangesInList(meetings);
+    }
 
-        meetings = sortTheListOfMeetingsAsc(meetings);
-
+    @NotNull
+    private static List<TimeRange> changeMeetingsToTimeRangesInList(List<Meeting> meetings) throws InvalidTimeRangeException {
+        List<TimeRange> minimizedList = new ArrayList<>();
         for (Meeting meeting : meetings) {
-                   List<String> singleMeeting = new ArrayList<>();
-                   singleMeeting.add(meeting.getStart());
-                   singleMeeting.add(meeting.getEnd());
-                   minimizedList.add(singleMeeting);
+                   var singleMeetingTimeRange = new TimeRange(meeting.getStart(), meeting.getEnd());
+                   minimizedList.add(singleMeetingTimeRange);
         }
         return minimizedList;
+    }
+
+    private static boolean uniteMeetingsIfPossible(List<Meeting> meetings, int i, int j) {
+        if(meetings.get(i).getEnd().equals(meetings.get(j).getStart())){
+            meetings.get(i).setEnd(meetings.get(j).getEnd());
+            meetings.remove(j);
+            return true;
+        }
+        return false;
     }
 
     private static List<Meeting> sortTheListOfMeetingsAsc(List<Meeting> listOfMeetings){
@@ -75,7 +90,7 @@ public class MeetAlgorithm {
         return arrayOfMeetings;
     }
 
-    private static TimeRange getPossibleTimeRangeForMeeting(Calendar firstCalendar, Calendar secondCalendar) {
+    private static TimeRange getPossibleTimeRangeForMeeting(Calendar firstCalendar, Calendar secondCalendar) throws InvalidTimeRangeException {
 
         var firstMeetingRange = firstCalendar.getCalendarTimeRange();
         var secondMeetingRange = secondCalendar.getCalendarTimeRange();
@@ -132,7 +147,7 @@ public class MeetAlgorithm {
         return earlierHour;
     }
 
-    private static List<Meeting> getAvailableTimeSlotsBasedOnMeetingDuration(Calendar calendar, String duration, TimeRange commonWorkingRange) throws InvalidTimeRange {
+    private static List<Meeting> getAvailableTimeSlotsBasedOnMeetingDuration(Calendar calendar, String duration, TimeRange commonWorkingRange) throws InvalidTimeRangeException {
 
         List<Meeting> newMeetingSlots = new ArrayList<>();
         long durationInMinutes = Duration.between(LocalTime.parse("00:00"), LocalTime.parse(duration)).toMinutes();
@@ -141,16 +156,24 @@ public class MeetAlgorithm {
             newMeetingSlots.addAll(createMeetingsFromMinutesAndStartTime(durationInMinutes, Duration.between(commonWorkingRange.getStart(), commonWorkingRange.getEnd()).toMinutes(), commonWorkingRange.getStart()));
             return newMeetingSlots;
         }
+        createMeetingsSlotsBeforeFirstMeetingOrTheLastOne(calendar, commonWorkingRange, newMeetingSlots, durationInMinutes);
+        createNewMeetingsSlots(calendar, newMeetingSlots, durationInMinutes);
+        return newMeetingSlots;
+    }
+
+    private static void createMeetingsSlotsBeforeFirstMeetingOrTheLastOne(Calendar calendar, TimeRange commonWorkingRange, List<Meeting> newMeetingSlots, long durationInMinutes) throws InvalidTimeRangeException {
         long minutesBeforeFirstMeeting = Duration.between(commonWorkingRange.getStart(), calendar.getStartOfFirstElementOfList()).toMinutes();
         long minutesBeforeEndOfWorking = Duration.between(calendar.getEndOfLastElementOfList(), commonWorkingRange.getEnd()).toMinutes();
 
-            if (minutesBeforeFirstMeeting >= durationInMinutes) {
-                newMeetingSlots.addAll(createMeetingsFromMinutesAndStartTime(durationInMinutes, minutesBeforeFirstMeeting, commonWorkingRange.getStart()));
-            }
-            if (minutesBeforeEndOfWorking >= durationInMinutes) {
-                newMeetingSlots.addAll(createMeetingsFromMinutesAndStartTime(durationInMinutes, minutesBeforeEndOfWorking, calendar.getEndOfLastElementOfList()));
-            }
+        if (minutesBeforeFirstMeeting >= durationInMinutes) {
+            newMeetingSlots.addAll(createMeetingsFromMinutesAndStartTime(durationInMinutes, minutesBeforeFirstMeeting, commonWorkingRange.getStart()));
+        }
+        if (minutesBeforeEndOfWorking >= durationInMinutes) {
+            newMeetingSlots.addAll(createMeetingsFromMinutesAndStartTime(durationInMinutes, minutesBeforeEndOfWorking, calendar.getEndOfLastElementOfList()));
+        }
+    }
 
+    private static void createNewMeetingsSlots(Calendar calendar, List<Meeting> newMeetingSlots, long durationInMinutes) throws InvalidTimeRangeException {
         for (var i = 1; i < calendar.getArrayOfMeetings().size(); i++) {
             long spareTime = Duration.between(LocalTime.parse(calendar.getArrayOfMeetings().get(i - 1).getEnd()), calendar.getStartOfElementByIndex(i)).toMinutes();
 
@@ -158,13 +181,11 @@ public class MeetAlgorithm {
                 newMeetingSlots.addAll(createMeetingsFromMinutesAndStartTime(durationInMinutes, spareTime, LocalTime.parse(calendar.getArrayOfMeetings().get(i - 1).getEnd())));
             }
         }
-        return newMeetingSlots;
     }
 
-    private static ArrayList<Meeting> createMeetingsFromMinutesAndStartTime(long durationInMinutes, long spareTimeInMinutes, LocalTime start) throws InvalidTimeRange {
+    private static ArrayList<Meeting> createMeetingsFromMinutesAndStartTime(long durationInMinutes, long spareTimeInMinutes, LocalTime start) throws InvalidTimeRangeException {
 
         ArrayList<Meeting> meetingArrayList = new ArrayList<>();
-
         long minutesToBeSpent = spareTimeInMinutes - (spareTimeInMinutes % durationInMinutes);
 
         LocalTime startVar = start;

@@ -1,6 +1,6 @@
 package main.java.com.example;
 
-import main.java.com.example.exceptions.InvalidTimeRange;
+import main.java.com.example.exceptions.InvalidTimeRangeException;
 
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
@@ -14,31 +14,32 @@ public class Calendar {
 
     ArrayList<Meeting> arrayOfMeetings = new ArrayList<>();
 
-    public Calendar(String start, String end) throws InvalidTimeRange, DateTimeParseException{
+    public Calendar(String start, String end) throws InvalidTimeRangeException, DateTimeParseException{
         try{
             LocalTime.parse(start);
+            LocalTime.parse(end);
         }catch(DateTimeParseException ex){
             throw new DateTimeParseException("Invalid string input as start/end.", start, 1);
         }
          if(LocalTime.parse(end).isBefore(LocalTime.parse(start))){
-            throw new InvalidTimeRange("Failed to create calendar. The end cannot be before the start.");
+            throw new InvalidTimeRangeException("Failed to create calendar. The end cannot be before the start.");
         }else{
             this.start = start;
             this.end = end;
         }
     }
 
-    public TimeRange getCalendarTimeRange(){
+    public TimeRange getCalendarTimeRange() throws InvalidTimeRangeException {
         var startOfWorking = LocalTime.parse(this.start);
         var endOfWorking = LocalTime.parse(this.end);
         return new TimeRange(startOfWorking, endOfWorking);
     }
 
-    public void addMeeting(String meetingStart, String meetingEnd) throws InvalidTimeRange {
+    public void addMeeting(String meetingStart, String meetingEnd) throws InvalidTimeRangeException {
         if(LocalTime.parse(meetingStart).isBefore(LocalTime.parse(start))){
-            throw new InvalidTimeRange("Cannot add meeting which starts before the working hours.");
+            throw new InvalidTimeRangeException("Cannot add meeting which starts before the working hours.");
         }else if(LocalTime.parse(meetingEnd).isAfter(LocalTime.parse(end))){
-            throw new InvalidTimeRange("Cannot add meeting which ends before the end of working hours.");
+            throw new InvalidTimeRangeException("Cannot add meeting which ends before the end of working hours.");
         }else{
             var meeting = new Meeting(meetingStart, meetingEnd);
             this.arrayOfMeetings.add(meeting);

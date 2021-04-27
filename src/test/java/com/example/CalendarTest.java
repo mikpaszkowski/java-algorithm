@@ -1,7 +1,7 @@
 package test.java.com.example;
 
 import main.java.com.example.Calendar;
-import main.java.com.example.exceptions.InvalidTimeRange;
+import main.java.com.example.exceptions.InvalidTimeRangeException;
 import org.junit.Assert;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -35,10 +35,10 @@ class CalendarTest {
     }
 
     @Test
-    public void testAddingMeetingOutOfWorkingHours() throws InvalidTimeRange {
+    public void testAddingMeetingOutOfWorkingHours() throws InvalidTimeRangeException {
         var calendar = new Calendar("09:00", "16:30");
 
-        var exception = Assert.assertThrows(InvalidTimeRange.class, () ->
+        var exception = Assert.assertThrows(InvalidTimeRangeException.class, () ->
             calendar.addMeeting("12:00", "11:00")
         );
 
@@ -49,9 +49,9 @@ class CalendarTest {
     }
 
     @Test
-    public void testAddingMeetingBeforeTheWorkingHours() throws InvalidTimeRange{
+    public void testAddingMeetingBeforeTheWorkingHours() throws InvalidTimeRangeException {
         var calendar = new Calendar("09:30", "16:40");
-        var exception = Assert.assertThrows(InvalidTimeRange.class, () ->
+        var exception = Assert.assertThrows(InvalidTimeRangeException.class, () ->
             calendar.addMeeting("08:00", "08:30")
         );
 
@@ -60,9 +60,9 @@ class CalendarTest {
         Assertions.assertTrue(actualMessage.contains(expectedMessage));
     }
     @Test
-    public void testAddingMeetingAfterTheWorkingHours() throws InvalidTimeRange{
+    public void testAddingMeetingAfterTheWorkingHours() throws InvalidTimeRangeException {
         var calendar = new Calendar("09:00", "16:30");
-        var exception = Assert.assertThrows(InvalidTimeRange.class, () ->
+        var exception = Assert.assertThrows(InvalidTimeRangeException.class, () ->
             calendar.addMeeting("17:00", "17:30")
         );
 
